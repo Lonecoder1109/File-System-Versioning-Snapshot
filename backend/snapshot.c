@@ -148,21 +148,28 @@ bool fs_trim_snapshot(FileSystem *fs, uint32_t snapshot_id) {
 
 // Add tag to snapshot
 bool fs_add_snapshot_tag(FileSystem *fs, uint32_t snapshot_id, const char *tag, const char *description) {
-    if (snapshot_id == 0 || snapshot_id > fs->snapshot_count) return false;
-    
+    if (!fs || snapshot_id == 0 || snapshot_id > fs->snapshot_count) return false;
+
     Snapshot *snapshot = &fs->snapshots[snapshot_id - 1];
     if (snapshot->snapshot_id == 0) return false;
-    
+
     if (snapshot->tag_count >= MAX_TAGS_PER_VERSION) return false;
-    
-    SemanticTag *new_tag = &snapshot->tags[snapshot->tag_count];
-    strncpy(new_tag->tag, tag, MAX_TAG_LENGTH - 1);
-    strncpy(new_tag->description, description, 255);
-    new_tag->created_at = time(NULL);
-    
+
+    // Copy tag safely
+    strncpy(snapshot->tags[snapshot->tag_count].tag, tag, MAX_TAG_LENGTH - 1);
+    snapshot->tags[snapshot->tag_count].tag[MAX_TAG_LENGTH - 1] = '\0';
+
+    // Copy description safely
+    strncpy(snapshot->tags[snapshot->tag_count].description, description, 255);
+    snapshot->tags[snapshot->tag_count].description[255] = '\0';
+
+    snapshot->tags[snapshot->tag_count].created_at = time(NULL);
     snapshot->tag_count++;
     fs->is_dirty = true;
-    
+
+    printf("[DEBUG] Added tag '%s' to snapshot ID %u (Total tags: %u)\n",
+           tag, snapshot_id, snapshot->tag_count);
+
     return true;
 }
 

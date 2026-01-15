@@ -28,7 +28,7 @@ const FileOperations = ({ files, onRefresh }) => {
             if (data.success) {
                 setNewFileName('');
                 setShowCreateModal(false);
-                onRefresh(); // refresh list from backend
+                onRefresh();
             } else {
                 console.error('Create file failed:', data.error);
             }
@@ -54,8 +54,7 @@ const FileOperations = ({ files, onRefresh }) => {
             const data = await response.json();
 
             if (data.success) {
-                // Instead of incrementing locally, fetch the updated file list from backend
-                await onRefresh();
+                await onRefresh();   // <-- IMPORTANT: refresh file list from backend
 
                 setWriteData('');
                 setShowWriteModal(false);
@@ -110,8 +109,19 @@ const FileOperations = ({ files, onRefresh }) => {
                                                 </div>
                                             </td>
                                             <td>{file.size}</td>
-                                            <td><span className="badge badge-primary">{file.blocks}</span></td>
-                                            <td><span className="badge badge-success">{file.versions}</span></td>
+                                            <td>
+                                                <span className="badge badge-primary">
+                                                    {file.blocks}
+                                                </span>
+                                            </td>
+
+                                            {/* ✅ FIXED VERSION COUNT */}
+                                            <td>
+                                                <span className="badge badge-success">
+                                                    {file.versionCount ?? file.versions}
+                                                </span>
+                                            </td>
+
                                             <td>
                                                 {file.immutablePolicy === 0 ? 'None' :
                                                  file.immutablePolicy === 1 ? 'Read Only' :
@@ -120,7 +130,10 @@ const FileOperations = ({ files, onRefresh }) => {
                                             <td>
                                                 <button
                                                     className="btn btn-sm btn-secondary"
-                                                    onClick={() => { setSelectedFile(file); setShowWriteModal(true); }}
+                                                    onClick={() => {
+                                                        setSelectedFile(file);
+                                                        setShowWriteModal(true);
+                                                    }}
                                                 >
                                                     <Edit size={14} />
                                                 </button>
@@ -155,7 +168,9 @@ const FileOperations = ({ files, onRefresh }) => {
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
                             <button className="btn btn-secondary" onClick={() => setShowCreateModal(false)}>Cancel</button>
-                            <button className="btn btn-primary" onClick={createFile} disabled={!newFileName.trim()}>Create</button>
+                            <button className="btn btn-primary" onClick={createFile} disabled={!newFileName.trim()}>
+                                Create
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -171,7 +186,11 @@ const FileOperations = ({ files, onRefresh }) => {
                         </div>
                         <div className="form-group">
                             <label>Write Strategy</label>
-                            <select className="form-select" value={writeStrategy} onChange={e => setWriteStrategy(e.target.value)}>
+                            <select
+                                className="form-select"
+                                value={writeStrategy}
+                                onChange={e => setWriteStrategy(e.target.value)}
+                            >
                                 <option value="cow">Copy-on-Write (CoW)</option>
                                 <option value="row">Redirect-on-Write (RoW)</option>
                             </select>
@@ -188,7 +207,9 @@ const FileOperations = ({ files, onRefresh }) => {
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
                             <button className="btn btn-secondary" onClick={() => setShowWriteModal(false)}>Cancel</button>
-                            <button className="btn btn-primary" onClick={writeFile} disabled={!writeData.trim()}>Write</button>
+                            <button className="btn btn-primary" onClick={writeFile} disabled={!writeData.trim()}>
+                                Write
+                            </button>
                         </div>
                     </div>
                 </div>

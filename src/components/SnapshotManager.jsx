@@ -1,16 +1,12 @@
 import React, { useState } from 'react';
-import { Camera, Plus, RotateCcw, Tag } from 'lucide-react';
+import { Camera, Plus, RotateCcw } from 'lucide-react';
 
 const API_BASE = 'http://localhost:8080/api';
 
 const SnapshotManager = ({ snapshots, onRefresh }) => {
     const [showCreateModal, setShowCreateModal] = useState(false);
-    const [showTagModal, setShowTagModal] = useState(false);
-    const [selectedSnapshot, setSelectedSnapshot] = useState(null);
     const [snapshotName, setSnapshotName] = useState('');
     const [snapshotDescription, setSnapshotDescription] = useState('');
-    const [tagName, setTagName] = useState('');
-    const [tagDescription, setTagDescription] = useState('');
 
     // ✅ STATUS MESSAGE STATE
     const [statusMessage, setStatusMessage] = useState('');
@@ -56,45 +52,13 @@ const SnapshotManager = ({ snapshots, onRefresh }) => {
 
             if (response.ok) {
                 onRefresh();
-                showMessage(
-                    `Rollback to "${snapshot.name}" executed successfully.`
-                );
+                showMessage(`Rollback to "${snapshot.name}" executed successfully.`);
             } else {
                 showMessage('Rollback failed on server.');
             }
         } catch (err) {
             showMessage('Rollback request failed.');
             console.error(err);
-        }
-    };
-
-
-    // ===== ADD TAG =====
-    const addTag = async () => {
-        if (!selectedSnapshot || !tagName.trim()) return;
-        try {
-            const response = await fetch(`${API_BASE}/snapshots/tag`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    name: selectedSnapshot.name,
-                    tagName,
-                    tagDescription
-                })
-            });
-            const data = await response.json();
-            if (data.success) {
-                setTagName('');
-                setTagDescription('');
-                setShowTagModal(false);
-                setSelectedSnapshot(null);
-                onRefresh();
-                showMessage(`Tag "${tagName}" added to snapshot.`);
-            } else {
-                showMessage('Failed to add tag.');
-            }
-        } catch (err) {
-            showMessage('Error adding tag.');
         }
     };
 
@@ -155,15 +119,6 @@ const SnapshotManager = ({ snapshots, onRefresh }) => {
                                         >
                                             <RotateCcw size={14}/> Rollback
                                         </button>
-                                        <button
-                                            className="btn btn-sm btn-secondary"
-                                            onClick={() => {
-                                                setSelectedSnapshot(snapshot);
-                                                setShowTagModal(true);
-                                            }}
-                                        >
-                                            <Tag size={14}/> Tag
-                                        </button>
                                     </div>
                                 </div>
                             ))}
@@ -203,43 +158,6 @@ const SnapshotManager = ({ snapshots, onRefresh }) => {
                             <button className="btn btn-secondary" onClick={() => setShowCreateModal(false)}>Cancel</button>
                             <button className="btn btn-primary" onClick={createSnapshot} disabled={!snapshotName.trim()}>
                                 Create
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* Add Tag Modal */}
-            {showTagModal && selectedSnapshot && (
-                <div className="modal-overlay" onClick={() => setShowTagModal(false)}>
-                    <div className="modal" onClick={e => e.stopPropagation()}>
-                        <div className="modal-header">
-                            <h3>Add Tag to {selectedSnapshot.name}</h3>
-                            <button className="modal-close" onClick={() => setShowTagModal(false)}>×</button>
-                        </div>
-                        <div className="form-group">
-                            <label>Tag Name</label>
-                            <input
-                                type="text"
-                                className="form-input"
-                                value={tagName}
-                                onChange={e => setTagName(e.target.value)}
-                                autoFocus
-                            />
-                        </div>
-                        <div className="form-group">
-                            <label>Description</label>
-                            <input
-                                type="text"
-                                className="form-input"
-                                value={tagDescription}
-                                onChange={e => setTagDescription(e.target.value)}
-                            />
-                        </div>
-                        <div style={{ display:'flex', justifyContent:'flex-end', gap:'1rem' }}>
-                            <button className="btn btn-secondary" onClick={() => setShowTagModal(false)}>Cancel</button>
-                            <button className="btn btn-primary" onClick={addTag} disabled={!tagName.trim()}>
-                                Add Tag
                             </button>
                         </div>
                     </div>

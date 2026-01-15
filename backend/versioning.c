@@ -11,9 +11,14 @@ uint32_t fs_create_version(FileSystem *fs, uint32_t inode_id, const char *descri
     // Allocate or expand versions array
     if (inode->versions == NULL) {
         inode->versions = (FileVersion *)malloc(sizeof(FileVersion));
+        if (!inode->versions) return 0;
     } else {
-        inode->versions = (FileVersion *)realloc(inode->versions, 
-                                                 (inode->version_count + 1) * sizeof(FileVersion));
+        FileVersion *tmp = (FileVersion *)realloc(
+            inode->versions,
+            (inode->version_count + 1) * sizeof(FileVersion)
+        );
+        if (!tmp) return 0;
+        inode->versions = tmp;
     }
     
     FileVersion *version = &inode->versions[inode->version_count];
@@ -29,11 +34,12 @@ uint32_t fs_create_version(FileSystem *fs, uint32_t inode_id, const char *descri
     version->is_snapshot_version = false;
     strncpy(version->description, description, 511);
     
-    // Copy block references (increment ref counts for CoW)
+    // Copy block references (NO ref_count change)
     version->blocks = (uint32_t *)malloc(inode->block_count * sizeof(uint32_t));
+    if (!version->blocks) return 0;
+
     for (uint32_t i = 0; i < inode->block_count; i++) {
         version->blocks[i] = inode->blocks[i];
-        fs->blocks[inode->blocks[i]].ref_count++;
     }
     
     inode->version_count++;
@@ -64,6 +70,7 @@ bool fs_rollback_version(FileSystem *fs, uint32_t inode_id, uint32_t version_id)
     
     inode->block_count = version->block_count;
     inode->blocks = (uint32_t *)malloc(version->block_count * sizeof(uint32_t));
+    if (!inode->blocks) return false;
     
     for (uint32_t i = 0; i < version->block_count; i++) {
         inode->blocks[i] = version->blocks[i];
@@ -111,6 +118,7 @@ FileVersion* fs_find_versions_by_tag(FileSystem *fs, uint32_t inode_id, const ch
     
     *count = 0;
     FileVersion *results = (FileVersion *)malloc(inode->version_count * sizeof(FileVersion));
+    if (!results) return NULL;
     
     for (uint32_t v = 0; v < inode->version_count; v++) {
         FileVersion *version = &inode->versions[v];
@@ -135,14 +143,12 @@ bool fs_set_extended_attribute(FileSystem *fs, uint32_t inode_id, const char *ke
     // Check if attribute already exists
     for (uint32_t i = 0; i < inode->attr_count; i++) {
         if (strcmp(inode->attributes[i].key, key) == 0) {
-            // Update existing
             strncpy(inode->attributes[i].value, value, 255);
             fs->is_dirty = true;
             return true;
         }
     }
     
-    // Add new attribute
     if (inode->attr_count >= 20) return false;
     
     ExtendedAttribute *attr = &inode->attributes[inode->attr_count];

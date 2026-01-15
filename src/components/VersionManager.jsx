@@ -134,7 +134,7 @@ const VersionManager = ({ files, onRefresh }) => {
                                     </div>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                                         <span>{file.size.toLocaleString()} bytes</span>
-                                        <span className="badge badge-success">{file.versions} versions</span>
+                                        <span className="badge badge-success">{file.versions ?? versions.length} versions</span>
                                     </div>
                                 </div>
                             ))}
@@ -222,28 +222,7 @@ const VersionManager = ({ files, onRefresh }) => {
                 </div>
             )}
 
-            {/* Contextual Versioning Features */}
-            <div className="card">
-                <div className="card-header"><h3 className="card-title">Contextual Versioning Features</h3></div>
-                <div className="card-body">
-                    <div className="grid grid-2" style={{ gap: '1rem' }}>
-                        <div style={{ padding: '1.5rem', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-md)', border: '2px solid var(--accent-primary)' }}>
-                            <Tag size={24} style={{ color: 'var(--accent-primary)', marginBottom: '0.5rem' }} />
-                            <h4 style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>Semantic Tags</h4>
-                            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                                Tag versions with meaningful labels like "stable", "beta", "production" for easy identification and retrieval.
-                            </p>
-                        </div>
-                        <div style={{ padding: '1.5rem', background: 'var(--bg-tertiary)', borderRadius: 'var(--radius-md)', border: '2px solid var(--accent-success)' }}>
-                            <GitBranch size={24} style={{ color: 'var(--accent-success)', marginBottom: '0.5rem' }} />
-                            <h4 style={{ fontSize: '1rem', marginBottom: '0.5rem' }}>Extended Attributes</h4>
-                            <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                                Store custom metadata with each version including author, purpose, and other contextual information.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            
 
             {/* Add Tag Modal */}
             {showTagModal && selectedFile && selectedVersion && (

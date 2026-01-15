@@ -523,7 +523,7 @@ bool fs_write_file(FileSystem *fs,
 
             if (strategy == STRATEGY_COW) {
                 fs->blocks[block_id].is_cow = true;
-                
+
             }
         }
 
@@ -533,6 +533,11 @@ bool fs_write_file(FileSystem *fs,
     inode->size += size;
     inode->modified_at = time(NULL);
     fs->is_dirty = true;
+    // Auto-create version after write
+    uint32_t new_version = fs_create_version(fs, inode->inode_id, "Auto-version from write");
+    if (new_version == 0) {
+        printf("Warning: failed to create auto-version for file %s\n", inode->filename);
+}
 
     return true;
 }
@@ -550,11 +555,14 @@ bool fs_write_file_api(FileSystem *fs, const char *filename, const void *data, u
     // Write
     bool result = fs_write_file(fs, inode_id, data, size, strategy);
     if (!result) return false;
+    Inode *inode = fs_get_inode(fs, inode_id);  // <-- add this
+    if (!inode) return false;
 
     // Return updated inode info
     if (out_inode) {
         *out_inode = *fs_get_inode(fs, inode_id);
     }
+
 
     return true;
 }
@@ -615,6 +623,7 @@ bool fs_append_file(FileSystem *fs, uint32_t inode_id, const void *data, uint64_
     bool result = fs_write_file(fs, inode_id, existing_data, existing_size + size, fs->default_strategy);
     
     free(existing_data);
+   
     return result;
 }
 
