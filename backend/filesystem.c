@@ -465,11 +465,6 @@ bool fs_write_file(FileSystem *fs,
     const uint8_t *bytes = (const uint8_t *)data;
     uint32_t blocks_needed = (size + BLOCK_SIZE - 1) / BLOCK_SIZE;
 
-    // ===== ROW: FREE OLD BLOCKS =====
-    if (strategy == STRATEGY_ROW) {
-        
-    }
-
     // ===== RESIZE BLOCK POINTER ARRAY =====
     inode->blocks = realloc(inode->blocks,
                              (inode->block_count + blocks_needed) * sizeof(uint32_t));

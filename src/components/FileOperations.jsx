@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from 'react'; 
 import { FileText, Plus, Edit } from 'lucide-react';
 
 const API_BASE = 'http://localhost:8080/api';
@@ -9,7 +9,7 @@ const FileOperations = ({ files, onRefresh }) => {
     const [selectedFile, setSelectedFile] = useState(null);
     const [newFileName, setNewFileName] = useState('');
     const [writeData, setWriteData] = useState('');
-    const [writeStrategy, setWriteStrategy] = useState('cow');
+    const [writeStrategy, setWriteStrategy] = useState('cow'); // Only CoW now
     const [localFiles, setLocalFiles] = useState(files);
 
     // Sync prop files with local state
@@ -47,14 +47,14 @@ const FileOperations = ({ files, onRefresh }) => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     name: selectedFile.name,
-                    strategy: writeStrategy.toLowerCase(),
+                    strategy: writeStrategy.toLowerCase(), // Always 'cow'
                     data: writeData
                 })
             });
             const data = await response.json();
 
             if (data.success) {
-                await onRefresh();   // <-- IMPORTANT: refresh file list from backend
+                await onRefresh();   // <-- refresh file list from backend
 
                 setWriteData('');
                 setShowWriteModal(false);
@@ -189,10 +189,9 @@ const FileOperations = ({ files, onRefresh }) => {
                             <select
                                 className="form-select"
                                 value={writeStrategy}
-                                onChange={e => setWriteStrategy(e.target.value)}
+                                disabled // only CoW
                             >
                                 <option value="cow">Copy-on-Write (CoW)</option>
-                                <option value="row">Redirect-on-Write (RoW)</option>
                             </select>
                         </div>
                         <div className="form-group">
