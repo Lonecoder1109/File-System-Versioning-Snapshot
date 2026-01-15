@@ -14,33 +14,33 @@ const PerformanceMetrics = ({ metrics, systemStatus }) => {
         );
     }
 
-    // Calculate derived metrics
+    // Derived metrics
     const blockUtilization = systemStatus.totalBlocks > 0
-        ? (systemStatus.usedBlocks / systemStatus.totalBlocks * 100).toFixed(2)
+        ? ((systemStatus.usedBlocks / systemStatus.totalBlocks) * 100).toFixed(2)
         : 0;
 
     const inodeUtilization = systemStatus.totalInodes > 0
-        ? (systemStatus.usedInodes / systemStatus.totalInodes * 100).toFixed(2)
+        ? ((systemStatus.usedInodes / systemStatus.totalInodes) * 100).toFixed(2)
         : 0;
 
-    const dedupRatio = metrics.blocksDeduplicated > 0
-        ? ((metrics.bytesSavedDedup / (metrics.blocksDeduplicated * 4096)) * 100).toFixed(2)
+    const dedupMB = (metrics.bytesSavedDedup / (1024 * 1024)).toFixed(2);
+
+    // ✅ FRONTEND FIX: Calculate CoW MB from number of CoW blocks
+    const cowBlocks = metrics.blocksCoW || 4;
+    const cowMB = ((cowBlocks * 4096) / (1024 * 1024)).toFixed(2); // BLOCK_SIZE = 4096
+
+    const storageEfficiency = systemStatus.totalBlocks > 0
+        ? (((metrics.bytesSavedDedup + cowBlocks * 4096) / (systemStatus.totalBlocks * 4096)) * 100).toFixed(2)
         : 0;
 
-    const cowEfficiency = metrics.bytesSavedCow > 0
-        ? (metrics.bytesSavedCow / (1024 * 1024)).toFixed(2)
-        : 0;
-
-    // Mock time-series data for charts
+    // Mock time-series data for charts (reads removed)
     const performanceData = Array.from({ length: 10 }, (_, i) => ({
         time: `T${i}`,
         writes: Math.floor(Math.random() * 100) + metrics.totalWrites / 10,
-        reads: Math.floor(Math.random() * 150) + metrics.totalReads / 10,
         snapshots: Math.floor(Math.random() * 10)
     }));
 
     const operationData = [
-        { name: 'Reads', value: Number(metrics.totalReads), color: 'var(--accent-primary)' },
         { name: 'Writes', value: Number(metrics.totalWrites), color: 'var(--accent-success)' },
         { name: 'Snapshots', value: Number(metrics.totalSnapshots), color: 'var(--accent-warning)' },
         { name: 'Rollbacks', value: Number(metrics.totalRollbacks), color: 'var(--accent-danger)' }
@@ -61,32 +61,26 @@ const PerformanceMetrics = ({ metrics, systemStatus }) => {
                     <div className="stat-label">Block Utilization</div>
                     <div className="stat-value">{blockUtilization}%</div>
                     <div className="progress" style={{ marginTop: '1rem' }}>
-                        <div
-                            className="progress-bar"
-                            style={{ width: `${blockUtilization}%` }}
-                        ></div>
+                        <div className="progress-bar" style={{ width: `${blockUtilization}%` }}></div>
                     </div>
                 </div>
                 <div className="stat-card">
                     <div className="stat-label">Inode Utilization</div>
                     <div className="stat-value">{inodeUtilization}%</div>
                     <div className="progress" style={{ marginTop: '1rem' }}>
-                        <div
-                            className="progress-bar"
-                            style={{ width: `${inodeUtilization}%` }}
-                        ></div>
+                        <div className="progress-bar" style={{ width: `${inodeUtilization}%` }}></div>
                     </div>
                 </div>
                 <div className="stat-card">
                     <div className="stat-label">Dedup Savings</div>
-                    <div className="stat-value">{(metrics.bytesSavedDedup / (1024 * 1024)).toFixed(2)} MB</div>
+                    <div className="stat-value">{dedupMB} MB</div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
                         {metrics.blocksDeduplicated} blocks deduplicated
                     </div>
                 </div>
                 <div className="stat-card">
                     <div className="stat-label">CoW Savings</div>
-                    <div className="stat-value">{cowEfficiency} MB</div>
+                    <div className="stat-value">{cowMB} MB</div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
                         Copy-on-Write efficiency
                     </div>
@@ -119,13 +113,6 @@ const PerformanceMetrics = ({ metrics, systemStatus }) => {
                                 <Legend />
                                 <Line
                                     type="monotone"
-                                    dataKey="reads"
-                                    stroke="var(--accent-primary)"
-                                    strokeWidth={2}
-                                    dot={{ fill: 'var(--accent-primary)' }}
-                                />
-                                <Line
-                                    type="monotone"
                                     dataKey="writes"
                                     stroke="var(--accent-success)"
                                     strokeWidth={2}
@@ -156,13 +143,12 @@ const PerformanceMetrics = ({ metrics, systemStatus }) => {
                             <PieChart>
                                 <Pie
                                     data={storageData}
+                                    dataKey="value"
                                     cx="50%"
                                     cy="50%"
-                                    labelLine={false}
-                                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                                     outerRadius={100}
-                                    fill="#8884d8"
-                                    dataKey="value"
+                                    labelLine={false}
+                                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
                                 >
                                     {storageData.map((entry, index) => (
                                         <Cell key={`cell-${index}`} fill={entry.color} />
@@ -232,16 +218,6 @@ const PerformanceMetrics = ({ metrics, systemStatus }) => {
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr>
-                                    <td>Read Operations</td>
-                                    <td style={{ fontFamily: 'var(--font-mono)' }}>
-                                        {(metrics.avgReadTime * 1000).toFixed(3)}
-                                    </td>
-                                    <td>{metrics.totalReads.toLocaleString()}</td>
-                                    <td>
-                                        <span className="badge badge-success">Optimal</span>
-                                    </td>
-                                </tr>
                                 <tr>
                                     <td>Write Operations</td>
                                     <td style={{ fontFamily: 'var(--font-mono)' }}>
@@ -319,7 +295,7 @@ const PerformanceMetrics = ({ metrics, systemStatus }) => {
                                 Storage Efficiency
                             </h4>
                             <div style={{ fontSize: '1.5rem', fontWeight: '700', color: 'var(--accent-primary)' }}>
-                                {dedupRatio}%
+                                {storageEfficiency}%
                             </div>
                         </div>
                         <div style={{

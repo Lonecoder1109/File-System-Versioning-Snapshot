@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
-import { Database, Layers, Copy, Zap, TrendingUp } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Database, Layers, Copy, Zap } from 'lucide-react';
 
-const BlockManager = ({ blocks, onRefresh }) => {
+const BlockManager = ({ onRefresh }) => {
+    const [blocks, setBlocks] = useState([]);
     const [filter, setFilter] = useState('all');
     const [selectedBlocks, setSelectedBlocks] = useState([]);
+    const [loading, setLoading] = useState(true);
 
     const blockTypes = {
         0: { name: 'FREE', color: 'var(--text-tertiary)', bg: 'rgba(100, 116, 139, 0.1)' },
@@ -15,6 +17,37 @@ const BlockManager = ({ blocks, onRefresh }) => {
         6: { name: 'BTREE', color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.2)' },
         7: { name: 'DEDUP', color: '#ec4899', bg: 'rgba(236, 72, 153, 0.2)' }
     };
+
+    // Fetch blocks from backend
+    const fetchBlocks = async () => {
+        try {
+            setLoading(true);
+            const res = await fetch('http://localhost:8080/api/blocks');
+            const data = await res.json();
+            if (data.success && Array.isArray(data.blocks)) {
+                const mapped = data.blocks.map(b => ({
+                    id: b.id,
+                    type: b.type,                    
+                    isCow: b.isCow === true || b.isCow === "true",         // CoW status
+                    isDeduplicated: b.isDeduplicated === true || b.isDeduplicated === "true", // Dedup status
+                    refCount: b.refCount || 1
+                }));
+                setBlocks(mapped);
+            } else {
+                setBlocks([]);
+            }
+        } catch (err) {
+            console.error('Failed to fetch blocks:', err);
+            setBlocks([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Fetch on mount and whenever onRefresh changes
+    useEffect(() => {
+        fetchBlocks();
+    }, [onRefresh]);
 
     const filteredBlocks = blocks.filter(block => {
         if (filter === 'all') return true;
@@ -41,6 +74,8 @@ const BlockManager = ({ blocks, onRefresh }) => {
         );
     };
 
+    if (loading) return <div>Loading blocks...</div>;
+
     return (
         <div className="grid" style={{ gap: '2rem' }}>
             {/* Block Statistics */}
@@ -53,30 +88,21 @@ const BlockManager = ({ blocks, onRefresh }) => {
                 </div>
                 <div className="card-body">
                     <div className="grid grid-4" style={{ gap: '1rem' }}>
-                        <div style={{ textAlign: 'center', padding: '1rem' }}>
-                            <div style={{ fontSize: '2rem', fontWeight: '700', color: 'var(--text-primary)' }}>
-                                {stats.total}
+                        {[
+                            { label: 'Total Blocks', value: stats.total, color: 'var(--text-primary)' },
+                            { label: 'Used', value: stats.used, color: 'var(--accent-primary)' },
+                            { label: 'CoW Blocks', value: stats.cow, color: 'var(--accent-success)' },
+                            { label: 'Deduplicated', value: stats.dedup, color: 'var(--accent-warning)' }
+                        ].map((s, i) => (
+                            <div key={i} style={{ textAlign: 'center', padding: '1rem' }}>
+                                <div style={{ fontSize: '2rem', fontWeight: '700', color: s.color }}>
+                                    {s.value}
+                                </div>
+                                <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                                    {s.label}
+                                </div>
                             </div>
-                            <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Total Blocks</div>
-                        </div>
-                        <div style={{ textAlign: 'center', padding: '1rem' }}>
-                            <div style={{ fontSize: '2rem', fontWeight: '700', color: 'var(--accent-primary)' }}>
-                                {stats.used}
-                            </div>
-                            <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Used</div>
-                        </div>
-                        <div style={{ textAlign: 'center', padding: '1rem' }}>
-                            <div style={{ fontSize: '2rem', fontWeight: '700', color: 'var(--accent-success)' }}>
-                                {stats.cow}
-                            </div>
-                            <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>CoW Blocks</div>
-                        </div>
-                        <div style={{ textAlign: 'center', padding: '1rem' }}>
-                            <div style={{ fontSize: '2rem', fontWeight: '700', color: 'var(--accent-warning)' }}>
-                                {stats.dedup}
-                            </div>
-                            <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Deduplicated</div>
-                        </div>
+                        ))}
                     </div>
                 </div>
             </div>
@@ -89,36 +115,15 @@ const BlockManager = ({ blocks, onRefresh }) => {
                         Block Visualization
                     </h3>
                     <div style={{ display: 'flex', gap: '0.5rem' }}>
-                        <button
-                            className={`btn btn-sm ${filter === 'all' ? 'btn-primary' : 'btn-secondary'}`}
-                            onClick={() => setFilter('all')}
-                        >
-                            All
-                        </button>
-                        <button
-                            className={`btn btn-sm ${filter === 'used' ? 'btn-primary' : 'btn-secondary'}`}
-                            onClick={() => setFilter('used')}
-                        >
-                            Used
-                        </button>
-                        <button
-                            className={`btn btn-sm ${filter === 'free' ? 'btn-primary' : 'btn-secondary'}`}
-                            onClick={() => setFilter('free')}
-                        >
-                            Free
-                        </button>
-                        <button
-                            className={`btn btn-sm ${filter === 'cow' ? 'btn-primary' : 'btn-secondary'}`}
-                            onClick={() => setFilter('cow')}
-                        >
-                            CoW
-                        </button>
-                        <button
-                            className={`btn btn-sm ${filter === 'dedup' ? 'btn-primary' : 'btn-secondary'}`}
-                            onClick={() => setFilter('dedup')}
-                        >
-                            Dedup
-                        </button>
+                        {['all','used','free','cow','dedup'].map(f => (
+                            <button
+                                key={f}
+                                className={`btn btn-sm ${filter === f ? 'btn-primary' : 'btn-secondary'}`}
+                                onClick={() => setFilter(f)}
+                            >
+                                {f.charAt(0).toUpperCase() + f.slice(1)}
+                            </button>
+                        ))}
                     </div>
                 </div>
                 <div className="card-body">

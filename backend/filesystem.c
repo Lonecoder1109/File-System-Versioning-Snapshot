@@ -307,6 +307,28 @@ uint32_t fs_cow_block(FileSystem *fs, uint32_t original_block) {
     
     return new_block;
 }
+// ===== DEDUP LOOKUP =====
+int32_t fs_find_dedup_block(FileSystem *fs, const Hash *hash) {
+    for (uint32_t i = 0; i < fs->dedup_count; i++) {
+        uint32_t block_id = fs->dedup_table[i].block_id;
+
+        if (hash_equals(&fs->blocks[block_id].content_hash, hash)) {
+            return block_id;
+            
+        }
+        
+    }
+    return -1;
+}
+
+bool fs_create_file(FileSystem *fs, const char *name, ImmutablePolicy policy) {
+    if (!fs || !name) return false;
+
+    uint32_t inode_id = fs_create_inode(fs, name, false);
+    if (inode_id == 0) return false;
+
+    return fs_set_immutable_policy(fs, inode_id, policy);
+}
 
 // Create inode
 uint32_t fs_create_inode(FileSystem *fs, const char *filename, bool is_directory) {
@@ -347,6 +369,20 @@ Inode* fs_get_inode(FileSystem *fs, uint32_t inode_id) {
     
     inode->accessed_at = time(NULL);
     return inode;
+}
+// Get inode by filename
+Inode* fs_get_inode_by_name(FileSystem *fs, const char *filename) {
+    if (!fs || !filename) return NULL;
+
+    for (uint32_t i = 0; i < fs->total_inodes; i++) {
+        Inode *inode = &fs->inodes[i];
+
+        if (inode->inode_id != 0 &&
+            strcmp(inode->filename, filename) == 0) {
+            return inode;
+        }
+    }
+    return NULL;
 }
 
 // Delete inode
@@ -401,96 +437,125 @@ bool fs_set_immutable_policy(FileSystem *fs, uint32_t inode_id, ImmutablePolicy 
     return true;
 }
 
+// ===== REGISTER DEDUP BLOCK =====
+void fs_register_dedup(FileSystem *fs, uint32_t block_id, const Hash *hash) {
+    if (fs->dedup_count >= MAX_BLOCKS) return;
+
+    fs->dedup_table[fs->dedup_count++].block_id = block_id;
+    fs->blocks[block_id].is_deduplicated = true;
+}
+
 // Write file with strategy
-bool fs_write_file(FileSystem *fs, uint32_t inode_id, const void *data, uint64_t size, WriteStrategy strategy) {
+bool fs_write_file(FileSystem *fs,
+                   uint32_t inode_id,
+                   const void *data,
+                   uint64_t size,
+                   WriteStrategy strategy)
+{
     Inode *inode = fs_get_inode(fs, inode_id);
     if (!inode) return false;
-    
-    // Check immutable policy
-    if (inode->immutable_policy == POLICY_READ_ONLY || 
+
+    // ===== IMMUTABLE CHECK =====
+    if (inode->immutable_policy == POLICY_READ_ONLY ||
         inode->immutable_policy == POLICY_WORM) {
         printf("Cannot write: inode is immutable\n");
         return false;
     }
-    
-    clock_t start = clock();
-    
+
+    const uint8_t *bytes = (const uint8_t *)data;
     uint32_t blocks_needed = (size + BLOCK_SIZE - 1) / BLOCK_SIZE;
-    uint32_t *new_blocks = (uint32_t *)malloc(blocks_needed * sizeof(uint32_t));
-    
-    if (strategy == STRATEGY_COW && inode->block_count > 0) {
-        // Copy-on-Write: Create new blocks by copying old ones
-        for (uint32_t i = 0; i < blocks_needed && i < inode->block_count; i++) {
-            new_blocks[i] = fs_cow_block(fs, inode->blocks[i]);
-            if (new_blocks[i] == (uint32_t)-1) {
-                free(new_blocks);
-                return false;
-            }
-        }
+
+    // ===== ROW: FREE OLD BLOCKS =====
+    if (strategy == STRATEGY_ROW) {
         
-        // Allocate additional blocks if needed
-        for (uint32_t i = inode->block_count; i < blocks_needed; i++) {
-            new_blocks[i] = fs_allocate_block(fs, BLOCK_DATA);
-            if (new_blocks[i] == (uint32_t)-1) {
-                free(new_blocks);
-                return false;
-            }
-        }
-        
-        // Decrease ref count on old blocks
-        for (uint32_t i = 0; i < inode->block_count; i++) {
-            fs_free_block(fs, inode->blocks[i]);
-        }
-    } else {
-        // Redirect-on-Write or new file: Allocate new blocks
-        printf("DEBUG: Allocating %u new blocks\n", blocks_needed);
-        for (uint32_t i = 0; i < blocks_needed; i++) {
-            new_blocks[i] = fs_allocate_block(fs, BLOCK_DATA);
-            printf("DEBUG: Allocated block %u for index %u\n", new_blocks[i], i);
-            if (new_blocks[i] == (uint32_t)-1) {
-                printf("ERROR: Failed to allocate block\n");
-                // Cleanup on failure
-                for (uint32_t j = 0; j < i; j++) {
-                    fs_free_block(fs, new_blocks[j]);
-                }
-                free(new_blocks);
-                return false;
-            }
-        }
-        
-        // Free old blocks if RoW
-        if (strategy == STRATEGY_ROW && inode->blocks) {
-            for (uint32_t i = 0; i < inode->block_count; i++) {
-                fs_free_block(fs, inode->blocks[i]);
-            }
-        }
     }
-    
-    // Write data to blocks
-    const uint8_t *data_bytes = (const uint8_t *)data;
+
+    // ===== RESIZE BLOCK POINTER ARRAY =====
+    inode->blocks = realloc(inode->blocks,
+                             (inode->block_count + blocks_needed) * sizeof(uint32_t));
+    if (!inode->blocks) return false;
+
+    // ===== WRITE LOOP =====
     for (uint32_t i = 0; i < blocks_needed; i++) {
-        uint64_t offset = i * BLOCK_SIZE;
-        uint64_t to_write = (size - offset > BLOCK_SIZE) ? BLOCK_SIZE : (size - offset);
-        
+
         uint8_t buffer[BLOCK_SIZE] = {0};
-        memcpy(buffer, data_bytes + offset, to_write);
-        fs_write_block(fs, new_blocks[i], buffer);
+        uint64_t offset = i * BLOCK_SIZE;
+        uint64_t to_write = (size - offset > BLOCK_SIZE)
+                            ? BLOCK_SIZE
+                            : (size - offset);
+
+        memcpy(buffer, bytes + offset, to_write);
+
+        // ===== DEDUP HASH =====
+        Hash hash;
+        fs_compute_hash(buffer, BLOCK_SIZE, &hash);
+
+        uint32_t block_id = (uint32_t)-1;
+
+        // ===== DEDUP LOOKUP =====
+        
+        for (uint32_t d = 0; d < fs->dedup_count; d++) {
+            uint32_t existing = fs->dedup_table[d].block_id;
+            if (hash_equals(&fs->blocks[existing].content_hash, &hash)) {
+                block_id = existing;
+                fs->blocks[block_id].ref_count++;
+                fs->blocks[block_id].is_deduplicated = true;
+
+                // ✅ Update metrics
+                fs->metrics.blocks_deduplicated++;
+                fs->metrics.bytes_saved_dedup += BLOCK_SIZE;
+
+                break;
+            }
+        }
+
+        // ===== NEW BLOCK REQUIRED =====
+        if (block_id == (uint32_t)-1) {
+
+            block_id = fs_allocate_block(fs, BLOCK_DATA);
+            if (block_id == (uint32_t)-1) return false;
+
+            fs_write_block(fs, block_id, buffer);
+
+            // Register dedup entry
+            fs->dedup_table[fs->dedup_count].block_id = block_id;
+            fs->dedup_count++;
+
+            if (strategy == STRATEGY_COW) {
+                fs->blocks[block_id].is_cow = true;
+                
+            }
+        }
+
+        inode->blocks[inode->block_count++] = block_id;
     }
-    
-    // Update inode
-    if (inode->blocks) {
-        free(inode->blocks);
-    }
-    inode->blocks = new_blocks;
-    inode->block_count = blocks_needed;
-    inode->size = size;
+
+    inode->size += size;
     inode->modified_at = time(NULL);
-    
-    clock_t end = clock();
-    double time_taken = ((double)(end - start)) / CLOCKS_PER_SEC;
-    fs->metrics.avg_write_time = (fs->metrics.avg_write_time * (fs->metrics.total_writes - blocks_needed) + time_taken) / fs->metrics.total_writes;
-    
     fs->is_dirty = true;
+
+    return true;
+}
+bool fs_write_file_api(FileSystem *fs, const char *filename, const void *data, uint64_t size, WriteStrategy strategy, Inode *out_inode) {
+    // Find inode
+    uint32_t inode_id = 0;
+    for (uint32_t i = 0; i < fs->total_inodes; i++) {
+        if (fs->inodes[i].inode_id != 0 && strcmp(fs->inodes[i].filename, filename) == 0) {
+            inode_id = fs->inodes[i].inode_id;
+            break;
+        }
+    }
+    if (inode_id == 0) return false;
+
+    // Write
+    bool result = fs_write_file(fs, inode_id, data, size, strategy);
+    if (!result) return false;
+
+    // Return updated inode info
+    if (out_inode) {
+        *out_inode = *fs_get_inode(fs, inode_id);
+    }
+
     return true;
 }
 
@@ -586,6 +651,14 @@ double fs_get_dedup_ratio(FileSystem *fs) {
     
     if (actual == 0) return 1.0;
     return (double)total / (double)actual;
+}
+// Count deduplicated blocks
+uint32_t fs_count_dedup_blocks(FileSystem *fs) {
+    uint32_t count = 0;
+    for (uint32_t i = 0; i < fs->total_blocks; i++) {
+        if (fs->blocks[i].is_deduplicated) count++;
+    }
+    return count;
 }
 
 // List files

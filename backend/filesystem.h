@@ -194,6 +194,7 @@ typedef struct {
     uint64_t blocks_deduplicated;
     uint64_t bytes_saved_dedup;
     uint64_t bytes_saved_cow;
+    
     double avg_snapshot_time;
     double avg_rollback_time;
     double avg_write_time;
@@ -259,15 +260,26 @@ bool fs_write_block(FileSystem *fs, uint32_t block_id, const void *buffer);
 uint32_t fs_cow_block(FileSystem *fs, uint32_t original_block);
 void fs_compute_hash(const void *data, size_t size, Hash *hash);
 bool hash_equals(const Hash *h1, const Hash *h2);
+// Count deduplicated blocks
+uint32_t fs_count_dedup_blocks(FileSystem *fs);
 
 // Inode management
 uint32_t fs_create_inode(FileSystem *fs, const char *filename, bool is_directory);
 void fs_delete_inode(FileSystem *fs, uint32_t inode_id);
 Inode* fs_get_inode(FileSystem *fs, uint32_t inode_id);
+Inode* fs_get_inode_by_name(FileSystem *fs, const char *name);
 bool fs_set_immutable_policy(FileSystem *fs, uint32_t inode_id, ImmutablePolicy policy);
 
 // File operations
+// File operations
+bool fs_create_file(FileSystem *fs, const char *name, ImmutablePolicy policy);
 bool fs_write_file(FileSystem *fs, uint32_t inode_id, const void *data, uint64_t size, WriteStrategy strategy);
+bool fs_write_file_api(FileSystem *fs,
+                       const char *filename,
+                       const void *data,
+                       uint64_t size,
+                       WriteStrategy strategy,
+                       Inode *out_inode);
 bool fs_read_file(FileSystem *fs, uint32_t inode_id, void *buffer, uint64_t *size);
 bool fs_append_file(FileSystem *fs, uint32_t inode_id, const void *data, uint64_t size);
 bool fs_truncate_file(FileSystem *fs, uint32_t inode_id, uint64_t new_size);
