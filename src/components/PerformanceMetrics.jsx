@@ -98,47 +98,7 @@ const PerformanceMetrics = ({ metrics, systemStatus }) => {
 
             {/* Performance Charts */}
             <div className="grid grid-2" style={{ gap: '1rem' }}>
-                {/* Operations Over Time */}
-                <div className="card">
-                    <div className="card-header">
-                        <h3 className="card-title">
-                            <TrendingUp size={20} />
-                            Operations Over Time
-                        </h3>
-                    </div>
-                    <div className="card-body">
-                        <ResponsiveContainer width="100%" height={300}>
-                            <LineChart data={performanceData}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
-                                <XAxis dataKey="time" stroke="var(--text-secondary)" />
-                                <YAxis stroke="var(--text-secondary)" />
-                                <Tooltip
-                                    contentStyle={{
-                                        background: 'var(--bg-tertiary)',
-                                        border: '1px solid var(--border-color)',
-                                        borderRadius: 'var(--radius-md)'
-                                    }}
-                                />
-                                <Legend />
-                                <Line
-                                    type="monotone"
-                                    dataKey="writes"
-                                    stroke="var(--accent-success)"
-                                    strokeWidth={2}
-                                    dot={{ fill: 'var(--accent-success)' }}
-                                />
-                                <Line
-                                    type="monotone"
-                                    dataKey="snapshots"
-                                    stroke="var(--accent-warning)"
-                                    strokeWidth={2}
-                                    dot={{ fill: 'var(--accent-warning)' }}
-                                />
-                            </LineChart>
-                        </ResponsiveContainer>
-                    </div>
-                </div>
-
+                
                 {/* Storage Distribution */}
                 <div className="card">
                     <div className="card-header">
