@@ -224,6 +224,8 @@ typedef struct {
     uint32_t journal_head;
     uint32_t journal_tail;
     uint64_t next_transaction_id;
+
+    uint32_t snapshot_version_map[MAX_SNAPSHOTS][MAX_INODES];
     
     // Deduplication
     DedupEntry *dedup_table;

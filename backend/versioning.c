@@ -49,7 +49,7 @@ uint32_t fs_create_version(FileSystem *fs, uint32_t inode_id, const char *descri
     return version->version_id;
 }
 
-// Rollback to a specific version
+// Rollback to a specific version - FIXED VERSION
 bool fs_rollback_version(FileSystem *fs, uint32_t inode_id, uint32_t version_id) {
     Inode *inode = fs_get_inode(fs, inode_id);
     if (!inode) return false;
@@ -58,7 +58,13 @@ bool fs_rollback_version(FileSystem *fs, uint32_t inode_id, uint32_t version_id)
     
     FileVersion *version = &inode->versions[version_id - 1];
     
-    // Free current blocks (decrement ref counts)
+    // ⭐ FIX: Increment FIRST for blocks we're restoring
+    // This prevents shared blocks from being freed prematurely
+    for (uint32_t i = 0; i < version->block_count; i++) {
+        fs->blocks[version->blocks[i]].ref_count++;
+    }
+    
+    // ⭐ THEN decrement for current blocks
     for (uint32_t i = 0; i < inode->block_count; i++) {
         fs_free_block(fs, inode->blocks[i]);
     }
@@ -72,9 +78,9 @@ bool fs_rollback_version(FileSystem *fs, uint32_t inode_id, uint32_t version_id)
     inode->blocks = (uint32_t *)malloc(version->block_count * sizeof(uint32_t));
     if (!inode->blocks) return false;
     
+    // ⭐ Just copy block IDs - NO increment (already done above)
     for (uint32_t i = 0; i < version->block_count; i++) {
         inode->blocks[i] = version->blocks[i];
-        fs->blocks[version->blocks[i]].ref_count++;
     }
     
     inode->size = version->size;

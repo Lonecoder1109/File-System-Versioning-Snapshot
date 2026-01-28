@@ -110,7 +110,7 @@ const SnapshotManager = ({ snapshots, onRefresh }) => {
                                     <h4>{snapshot.name}</h4>
                                     <div>Size: {formatSize(snapshot.totalSize)}</div>
                                     <div>Files: {snapshot.inodeCount}</div>
-                                    <div>Tags: {snapshot.tagCount}</div>
+                                    
 
                                     <div style={{ marginTop:'0.5rem', display:'flex', gap:'0.5rem' }}>
                                         <button

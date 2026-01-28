@@ -36,11 +36,16 @@ uint32_t fs_create_snapshot(FileSystem *fs, const char *name, const char *descri
         if (fs->inodes[i].inode_id != 0) {
             snapshot->inodes[idx++] = fs->inodes[i].inode_id;
             snapshot->total_size += fs->inodes[i].size;
+
+            // ⭐ NEW: Store which version this inode is at in the map
+            uint32_t inode_id = fs->inodes[i].inode_id;
+            uint32_t current_ver = fs->inodes[i].current_version;
+            fs->snapshot_version_map[snapshot->snapshot_id - 1][inode_id] = current_ver;
             
-            // Increment ref count on all blocks (CoW support)
+            /* Increment ref count on all blocks (CoW support)
             for (uint32_t b = 0; b < fs->inodes[i].block_count; b++) {
-                fs->blocks[fs->inodes[i].blocks[b]].ref_count++;
-            }
+                fs->blocks[fs->inodes[i].blocks[b]].ref_count++;***
+            }*/
         }
     }
     
@@ -98,22 +103,22 @@ bool fs_rollback_snapshot(FileSystem *fs, uint32_t snapshot_id) {
     Snapshot *snapshot = &fs->snapshots[snapshot_id - 1];
     if (snapshot->snapshot_id == 0) return false;
     
-    // This is a simplified rollback - in production, you'd need to:
-    // 1. Save current state as a new snapshot (for undo)
-    // 2. Restore all inode states from the snapshot
-    // 3. Handle block reference counts carefully
-    
     printf("Rolling back to snapshot: %s (ID: %u)\n", snapshot->name, snapshot_id);
     
-    // For now, just increment ref counts to prevent data loss
+    // For each file in the snapshot, find and rollback to the snapshot version
     for (uint32_t i = 0; i < snapshot->inode_count; i++) {
-        Inode *inode = fs_get_inode(fs, snapshot->inodes[i]);
-        if (inode) {
-            for (uint32_t b = 0; b < inode->block_count; b++) {
-                fs->blocks[inode->blocks[b]].ref_count++;
-            }
-        }
+    Inode *inode = fs_get_inode(fs, snapshot->inodes[i]);
+    if (!inode) continue;
+    
+    // ⭐ NEW: Get the version from the map
+    uint32_t target_version = fs->snapshot_version_map[snapshot_id - 1][inode->inode_id];
+    
+    if (target_version > 0 && target_version <= inode->version_count) {
+        printf("  Rolling back file %s to version %u\n", 
+               inode->filename, target_version);
+        fs_rollback_version(fs, inode->inode_id, target_version);
     }
+}
     
     fs->metrics.total_rollbacks++;
     fs->is_dirty = true;

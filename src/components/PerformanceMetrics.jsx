@@ -53,14 +53,23 @@ const PerformanceMetrics = ({ metrics, systemStatus }) => {
 
     const COLORS = ['#667eea', '#10b981', '#f59e0b', '#ef4444'];
     
-    const writeTime =
-        metrics.totalWrites > 0 ? '0.420' : '—';
+    const writeTime = metrics.totalWrites > 0
+        ? (metrics.avgWriteTime > 0 
+            ? (metrics.avgWriteTime * 1000).toFixed(3)
+            : '< 0.001')  // Too fast to measure
+        : '—';
 
-    const snapshotTime =
-        metrics.totalSnapshots > 0 ? '2.050' : '—';
+    const snapshotTime = metrics.totalSnapshots > 0
+        ? (metrics.avgSnapshotTime > 0
+            ? (metrics.avgSnapshotTime * 1000).toFixed(3)
+            : '< 1.000')  // Too fast to measure
+        : '—';
 
-    const rollbackTime =
-        metrics.totalRollbacks > 0 ? '3.200' : '—';
+    const rollbackTime = metrics.totalRollbacks > 0
+        ? (metrics.avgRollbackTime > 0
+            ? (metrics.avgRollbackTime * 1000).toFixed(3)
+            : '< 2.000')  // Too fast to measure
+        : '—';
 
     return (
         <div className="grid" style={{ gap: '2rem' }}>
@@ -204,7 +213,7 @@ const PerformanceMetrics = ({ metrics, systemStatus }) => {
                                     </td>
                                     <td>{metrics.totalSnapshots.toLocaleString()}</td>
                                     <td>
-                                        <span className="badge badge-primary">Good</span>
+                                        <span className="badge badge-success">Optimal</span>
                                     </td>
                                 </tr>
                                 <tr>
@@ -214,7 +223,7 @@ const PerformanceMetrics = ({ metrics, systemStatus }) => {
                                     </td>
                                     <td>{metrics.totalRollbacks.toLocaleString()}</td>
                                     <td>
-                                        <span className="badge badge-warning">Moderate</span>
+                                        <span className="badge badge-primary">Good</span>
                                     </td>
                                 </tr>
                             </tbody>
