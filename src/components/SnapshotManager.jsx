@@ -8,7 +8,7 @@ const SnapshotManager = ({ snapshots, onRefresh }) => {
     const [snapshotName, setSnapshotName] = useState('');
     const [snapshotDescription, setSnapshotDescription] = useState('');
 
-    // ✅ STATUS MESSAGE STATE
+    // STATUS MESSAGE STATE
     const [statusMessage, setStatusMessage] = useState('');
 
     const showMessage = (msg) => {
@@ -71,7 +71,7 @@ const SnapshotManager = ({ snapshots, onRefresh }) => {
     return (
         <div className="grid" style={{ gap: '2rem' }}>
 
-            {/* ✅ STATUS MESSAGE */}
+            {/* STATUS MESSAGE */}
             {statusMessage && (
                 <div
                     style={{

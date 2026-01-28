@@ -95,7 +95,6 @@ const FileOperations = ({ files, onRefresh }) => {
                                         <th>Size</th>
                                         <th>Blocks</th>
                                         <th>Versions</th>
-                                        <th>Policy</th>
                                         <th>Actions</th>
                                     </tr>
                                 </thead>
@@ -115,18 +114,13 @@ const FileOperations = ({ files, onRefresh }) => {
                                                 </span>
                                             </td>
 
-                                            {/* ✅ FIXED VERSION COUNT */}
+                                            {/* FIXED VERSION COUNT */}
                                             <td>
                                                 <span className="badge badge-success">
                                                     {file.versionCount ?? file.versions}
                                                 </span>
                                             </td>
 
-                                            <td>
-                                                {file.immutablePolicy === 0 ? 'None' :
-                                                 file.immutablePolicy === 1 ? 'Read Only' :
-                                                 file.immutablePolicy === 2 ? 'Append Only' : 'WORM'}
-                                            </td>
                                             <td>
                                                 <button
                                                     className="btn btn-sm btn-secondary"

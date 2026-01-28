@@ -25,7 +25,7 @@ const PerformanceMetrics = ({ metrics, systemStatus }) => {
 
     const dedupMB = (metrics.bytesSavedDedup / (1024 * 1024)).toFixed(2);
 
-    // ✅ FRONTEND FIX: Calculate CoW MB from number of CoW blocks
+    // Calculate CoW MB from number of CoW blocks
     const cowBlocks = metrics.blocksCoW || 4;
     const cowMB = ((cowBlocks * 4096) / (1024 * 1024)).toFixed(2); // BLOCK_SIZE = 4096
 
