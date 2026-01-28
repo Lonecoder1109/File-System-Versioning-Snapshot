@@ -42,10 +42,6 @@ uint32_t fs_create_snapshot(FileSystem *fs, const char *name, const char *descri
             uint32_t current_ver = fs->inodes[i].current_version;
             fs->snapshot_version_map[snapshot->snapshot_id - 1][inode_id] = current_ver;
             
-            /* Increment ref count on all blocks (CoW support)
-            for (uint32_t b = 0; b < fs->inodes[i].block_count; b++) {
-                fs->blocks[fs->inodes[i].blocks[b]].ref_count++;***
-            }*/
         }
     }
     
