@@ -25,20 +25,13 @@ const PerformanceMetrics = ({ metrics, systemStatus }) => {
 
     const dedupMB = (metrics.bytesSavedDedup / (1024 * 1024)).toFixed(2);
 
-    // Calculate CoW MB from number of CoW blocks
-    const cowBlocks = metrics.blocksCoW || 4;
-    const cowMB = ((cowBlocks * 4096) / (1024 * 1024)).toFixed(2); // BLOCK_SIZE = 4096
+    // Calculate CoW MB from number of CoW blocks (mock or real)
+    const cowBlocks = metrics.blocksCoW || (metrics.cowWrites * 1) || 0; // Approx 1 block per write if not tracked
+    const cowMB = ((cowBlocks * 4096) / (1024 * 1024)).toFixed(2);
 
     const storageEfficiency = systemStatus.totalBlocks > 0
         ? (((metrics.bytesSavedDedup + cowBlocks * 4096) / (systemStatus.totalBlocks * 4096)) * 100).toFixed(2)
         : 0;
-
-    // Mock time-series data for charts (reads removed)
-    const performanceData = Array.from({ length: 10 }, (_, i) => ({
-        time: `T${i}`,
-        writes: Math.floor(Math.random() * 100) + metrics.totalWrites / 10,
-        snapshots: Math.floor(Math.random() * 10)
-    }));
 
     const operationData = [
         { name: 'Writes', value: Number(metrics.totalWrites), color: 'var(--accent-success)' },
@@ -52,23 +45,23 @@ const PerformanceMetrics = ({ metrics, systemStatus }) => {
     ];
 
     const COLORS = ['#667eea', '#10b981', '#f59e0b', '#ef4444'];
-    
+
     const writeTime = metrics.totalWrites > 0
-        ? (metrics.avgWriteTime > 0 
+        ? (metrics.avgWriteTime > 0
             ? (metrics.avgWriteTime * 1000).toFixed(3)
-            : '< 0.001')  // Too fast to measure
+            : '< 0.001')
         : '—';
 
     const snapshotTime = metrics.totalSnapshots > 0
         ? (metrics.avgSnapshotTime > 0
             ? (metrics.avgSnapshotTime * 1000).toFixed(3)
-            : '< 1.000')  // Too fast to measure
+            : '< 1.000')
         : '—';
 
     const rollbackTime = metrics.totalRollbacks > 0
         ? (metrics.avgRollbackTime > 0
             ? (metrics.avgRollbackTime * 1000).toFixed(3)
-            : '< 2.000')  // Too fast to measure
+            : '< 2.000')
         : '—';
 
     return (
@@ -103,12 +96,23 @@ const PerformanceMetrics = ({ metrics, systemStatus }) => {
                         Copy-on-Write efficiency
                     </div>
                 </div>
+                <div className="stat-card">
+                    <div className="stat-label">Write Patterns</div>
+                    <div className="grid grid-2" style={{ gap: '0.5rem', marginTop: '0.5rem' }}>
+                        <div>
+                            <div className="stat-value" style={{ fontSize: '1rem' }}>{metrics.cowWrites || 0}</div>
+                            <div style={{ fontSize: '0.65rem' }}>CoW</div>
+                        </div>
+                        <div>
+                            <div className="stat-value" style={{ fontSize: '1rem' }}>{metrics.rowWrites || 0}</div>
+                            <div style={{ fontSize: '0.65rem' }}>RoW</div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             {/* Performance Charts */}
             <div className="grid grid-2" style={{ gap: '1rem' }}>
-                
-                {/* Storage Distribution */}
                 <div className="card">
                     <div className="card-header">
                         <h3 className="card-title">
@@ -300,4 +304,4 @@ const PerformanceMetrics = ({ metrics, systemStatus }) => {
     );
 };
 
-export default PerformanceMetrics; 
+export default PerformanceMetrics;

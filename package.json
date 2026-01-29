@@ -7,8 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "compile-backend": "gcc -o backend/fs_backend backend/main.c backend/filesystem.c backend/snapshot.c backend/versioning.c backend/btree.c backend/dedup.c backend/journal.c -lm",
-    "start-backend": "backend/fs_backend",
+    "compile-backend": "npm install --prefix backend",
+    "start-backend": "npm start --prefix backend",
     "test": "node test/integration.js"
   },
   "dependencies": {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'; 
+import React, { useState } from 'react';
 import { FileText, Plus, Edit } from 'lucide-react';
 
 const API_BASE = 'http://localhost:8080/api';
@@ -183,9 +183,10 @@ const FileOperations = ({ files, onRefresh }) => {
                             <select
                                 className="form-select"
                                 value={writeStrategy}
-                                disabled // only CoW
+                                onChange={e => setWriteStrategy(e.target.value)}
                             >
                                 <option value="cow">Copy-on-Write (CoW)</option>
+                                <option value="row">Redirect-on-Write (RoW)</option>
                             </select>
                         </div>
                         <div className="form-group">
